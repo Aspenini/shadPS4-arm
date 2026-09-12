@@ -19,7 +19,8 @@ static constexpr vk::SurfaceFormatKHR SURFACE_FORMAT_HDR = {
 };
 
 Swapchain::Swapchain(const Instance& instance_, const Frontend::WindowSDL& window_)
-    : instance{instance_}, window{window_}, surface{CreateSurface(instance.GetInstance(), window)} {
+    : instance{instance_}, window{window_},
+      surface{CreateSurface(instance.GetInstance(), window.GetWindowInfo())} {
     FindPresentFormat();
     FindPresentMode();
 
