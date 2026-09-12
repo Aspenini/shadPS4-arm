@@ -85,27 +85,54 @@ static std::optional<std::filesystem::path> GetBundleParentDirectory() {
 }
 #endif
 
-static auto UserPaths = [] {
-    // Try the portable user directory first.
-    auto user_dir = std::filesystem::current_path() / PORTABLE_DIR;
-    if (!std::filesystem::exists(user_dir)) {
-        // If it doesn't exist, use the standard path for the platform instead.
-        // NOTE: On Windows we currently just create the portable directory instead.
-#ifdef __APPLE__
-        user_dir =
-            std::filesystem::path(getenv("HOME")) / "Library" / "Application Support" / "shadPS4";
+// Base directory override, applied before the paths are first resolved. Android has no usable
+// default location -- the writable directory is owned by the Activity and only known at runtime --
+// so the JNI layer must call SetUserDirectory() before anything touches GetUserPath().
+static std::filesystem::path UserDirOverride;
+
+void SetUserDirectory(const std::filesystem::path& user_dir) {
+    UserDirOverride = user_dir;
+}
+
+/// Reads an environment variable, returning an empty path when it is unset or empty.
+[[maybe_unused]] static std::filesystem::path PathFromEnv(const char* name) {
+    const char* value = getenv(name);
+    if (value == nullptr || value[0] == 0) {
+        return {};
+    }
+    return std::filesystem::path(value);
+}
+
+static std::unordered_map<PathType, fs::path> CreateUserPaths() {
+    // An explicit override wins outright: it names a directory the host application owns, so
+    // neither the portable directory nor the platform default should be consulted.
+    auto user_dir = UserDirOverride;
+    if (user_dir.empty()) {
+        // Try the portable user directory first.
+        user_dir = std::filesystem::current_path() / PORTABLE_DIR;
+        if (!std::filesystem::exists(user_dir)) {
+            // If it doesn't exist, use the standard path for the platform instead.
+            // NOTE: On Windows we currently just create the portable directory instead.
+#if defined(__ANDROID__)
+            // Must precede the __linux__ case, which Android also satisfies. There is no sensible
+            // default here: HOME is typically unset and XDG paths do not exist, so reaching this
+            // point means SetUserDirectory() was not called early enough.
+            LOG_ERROR(Common_Filesystem,
+                      "No user directory set on Android; call SetUserDirectory() before use");
+#elif defined(__APPLE__)
+            user_dir = PathFromEnv("HOME") / "Library" / "Application Support" / "shadPS4";
 #elif defined(__linux__)
-        const char* xdg_data_home = getenv("XDG_DATA_HOME");
-        if (xdg_data_home != nullptr && strlen(xdg_data_home) > 0) {
-            user_dir = std::filesystem::path(xdg_data_home) / "shadPS4";
-        } else {
-            user_dir = std::filesystem::path(getenv("HOME")) / ".local" / "share" / "shadPS4";
-        }
+            if (auto xdg_data_home = PathFromEnv("XDG_DATA_HOME"); !xdg_data_home.empty()) {
+                user_dir = xdg_data_home / "shadPS4";
+            } else {
+                user_dir = PathFromEnv("HOME") / ".local" / "share" / "shadPS4";
+            }
 #elif _WIN32
-        TCHAR appdata[MAX_PATH] = {0};
-        SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, appdata);
-        user_dir = std::filesystem::path(appdata) / "shadPS4";
+            TCHAR appdata[MAX_PATH] = {0};
+            SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, appdata);
+            user_dir = std::filesystem::path(appdata) / "shadPS4";
 #endif
+        }
     }
 
     std::unordered_map<PathType, fs::path> paths;
@@ -151,7 +178,12 @@ static auto UserPaths = [] {
     }
 
     return paths;
-}();
+}
+
+static std::unordered_map<PathType, fs::path>& UserPaths() {
+    static auto paths = CreateUserPaths();
+    return paths;
+}
 
 bool ValidatePath(const fs::path& path) {
     if (path.empty()) {
@@ -180,7 +212,7 @@ std::string PathToUTF8String(const std::filesystem::path& path) {
 }
 
 const fs::path& GetUserPath(PathType shad_path) {
-    return UserPaths.at(shad_path);
+    return UserPaths().at(shad_path);
 }
 
 std::string GetUserPathString(PathType shad_path) {
@@ -194,7 +226,7 @@ void SetUserPath(PathType shad_path, const fs::path& new_path) {
         return;
     }
 
-    UserPaths.insert_or_assign(shad_path, new_path);
+    UserPaths().insert_or_assign(shad_path, new_path);
 }
 
 std::optional<fs::path> FindGameByID(const fs::path& dir, const std::string& game_id,

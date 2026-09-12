@@ -85,6 +85,17 @@ constexpr auto LOG_FILE = "shad_log.txt";
  *
  * @returns The filesystem path associated with the PathType enum.
  */
+/**
+ * Overrides the base directory that all user paths are resolved under.
+ *
+ * Must be called before the first GetUserPath() call, since the paths are resolved once on first
+ * use and the directories are created at that point. Intended for platforms with no usable default
+ * location, such as Android, where the writable directory is owned by the host application.
+ *
+ * @param user_dir Base directory to resolve user paths under
+ */
+void SetUserDirectory(const std::filesystem::path& user_dir);
+
 [[nodiscard]] const std::filesystem::path& GetUserPath(PathType user_path);
 
 /**
