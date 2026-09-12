@@ -5,6 +5,7 @@
 
 #include <span>
 
+#include "common/arch.h"
 #include "common/types.h"
 
 // ============================================================================
@@ -18,9 +19,30 @@ enum class WindowsGuestRedZoneProtectionMode : u32 {
 
 namespace Core::WindowsGuestRedZoneProtection {
 
+#ifdef ARCH_X86_64
+
 void SetActiveMode(WindowsGuestRedZoneProtectionMode mode) noexcept;
 WindowsGuestRedZoneProtectionMode GetActiveMode() noexcept;
 bool IsStaticPatchingEnabled() noexcept;
+
+#else
+
+// Red-zone protection keeps Windows exception dispatch clear of the x86-64 SysV red zone in guest
+// code. Guest code does not execute natively on other architectures, so there is no red zone to
+// protect and cpu_patches.cpp is excluded from the build. The settings type is still needed, so
+// provide inert implementations rather than making every caller architecture-aware.
+
+inline void SetActiveMode(WindowsGuestRedZoneProtectionMode) noexcept {}
+
+inline WindowsGuestRedZoneProtectionMode GetActiveMode() noexcept {
+    return WindowsGuestRedZoneProtectionMode::Disabled;
+}
+
+inline bool IsStaticPatchingEnabled() noexcept {
+    return false;
+}
+
+#endif
 
 } // namespace Core::WindowsGuestRedZoneProtection
 

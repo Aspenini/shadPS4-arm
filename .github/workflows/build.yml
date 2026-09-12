@@ -74,12 +74,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-26]
+        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm, macos-26]
         include:
           - os: windows-latest
             compiler_cxx: clang-cl
             compiler_c: clang-cl
           - os: ubuntu-latest
+            compiler_cxx: clang++
+            compiler_c: clang
+          - os: ubuntu-24.04-arm
             compiler_cxx: clang++
             compiler_c: clang
           - os: macos-26

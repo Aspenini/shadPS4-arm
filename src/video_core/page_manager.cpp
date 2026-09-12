@@ -36,9 +36,6 @@
 
 namespace VideoCore {
 
-constexpr size_t PM_PAGE_SIZE = 4_KB;
-constexpr size_t PM_PAGE_BITS = 12;
-
 struct PageManager::Impl {
     struct PageState {
         u8 num_write_watchers : 7;

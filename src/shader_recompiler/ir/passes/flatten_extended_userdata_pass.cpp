@@ -4,9 +4,13 @@
 #include <unordered_map>
 #include <boost/container/flat_map.hpp>
 #include <queue>
+#include "common/arch.h"
+
+#ifdef ARCH_X86_64
 #include <xbyak/xbyak.h>
 #include <xbyak/xbyak_util.h>
-#include "common/arch.h"
+#endif
+
 #include "common/decoder.h"
 #include "common/io_file.h"
 #include "common/logging/log.h"
