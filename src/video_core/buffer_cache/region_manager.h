@@ -7,12 +7,14 @@
 #include "common/logging/log.h"
 #include "core/emulator_settings.h"
 
-#ifdef __unix__
+// Common::AdaptiveMutex only exists where pthreads offer adaptive mutexes, which is a glibc
+// extension that bionic does not provide, and adaptive_mutex.h is what pulls in <pthread.h> to
+// decide that. Include both unconditionally and let the PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+// check below choose; gating the include on the platform instead makes the two disagree, which is
+// how Android ended up including only adaptive_mutex.h and then asking for Common::SpinLock.
 #include "common/adaptive_mutex.h"
-#else
-#include "common/spin_lock.h"
-#endif
 #include "common/debug.h"
+#include "common/spin_lock.h"
 #include "common/types.h"
 #include "video_core/buffer_cache/region_definitions.h"
 #include "video_core/page_manager.h"

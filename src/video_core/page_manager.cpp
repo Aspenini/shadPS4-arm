@@ -15,7 +15,6 @@
 #ifndef _WIN64
 #include <sys/mman.h>
 #include <unistd.h>
-#include "common/adaptive_mutex.h"
 #ifdef ENABLE_USERFAULTFD
 #include <thread>
 #include <fcntl.h>
@@ -26,14 +25,15 @@
 #endif
 #else
 #include <windows.h>
-#include "common/spin_lock.h"
 #endif
 
-#ifdef __linux__
+// Common::AdaptiveMutex only exists where pthreads offer adaptive mutexes, which is a glibc
+// extension that bionic does not provide, and adaptive_mutex.h is what pulls in <pthread.h> to
+// decide that. Include both unconditionally and let the PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+// check below choose; gating the include on the platform instead makes the two disagree, which is
+// how Android ended up including only adaptive_mutex.h and then asking for Common::SpinLock.
 #include "common/adaptive_mutex.h"
-#else
 #include "common/spin_lock.h"
-#endif
 
 namespace VideoCore {
 
