@@ -14,6 +14,7 @@
 
 #ifndef _WIN64
 #include <sys/mman.h>
+#include <unistd.h>
 #include "common/adaptive_mutex.h"
 #ifdef ENABLE_USERFAULTFD
 #include <thread>
@@ -362,7 +363,16 @@ struct PageManager::Impl {
 };
 
 PageManager::PageManager(Vulkan::Rasterizer* rasterizer_)
-    : impl{std::make_unique<Impl>(rasterizer_)} {}
+    : impl{std::make_unique<Impl>(rasterizer_)} {
+    // Write tracking protects memory at PM_PAGE_SIZE granularity. If the host page size is
+    // larger, every protect silently covers more than intended and invalidations get lost.
+#ifndef _WIN64
+    const size_t host_page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    ASSERT_MSG(host_page_size <= PM_PAGE_SIZE,
+               "Host page size {} exceeds the {} byte write-tracking granularity", host_page_size,
+               PM_PAGE_SIZE);
+#endif
+}
 
 PageManager::~PageManager() = default;
 

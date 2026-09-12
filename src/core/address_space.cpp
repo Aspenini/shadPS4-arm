@@ -42,7 +42,16 @@ constexpr VAddr USER_MIN = 0x7000000000ULL;
 constexpr VAddr SYSTEM_RESERVED_MAX = 0xFFFFFFFFFULL;
 constexpr VAddr USER_MIN = 0x1000000000ULL;
 #endif
-#if defined(__linux__)
+#if defined(__ANDROID__)
+// Must precede the __linux__ case, which Android also satisfies.
+// Many Android arm64 kernels are built with 39-bit virtual addresses, giving userspace only
+// 512 GB, so the desktop layout's ~85 TB reservation cannot be mapped at all. Cap the user area
+// at 64 GB (USER_MIN 0x1000000000 .. 0x2000000000), which keeps the whole layout -- system
+// managed, system reserved and user -- inside ~128 GB and therefore inside 39 bits.
+// Guest allocation addresses come from MemoryManager rather than from the game, so placement
+// stays under our control; a title hardcoding a higher address would need handling separately.
+constexpr VAddr USER_MAX = 0x1FFFFFFFFFULL;
+#elif defined(__linux__)
 // Linux maps the shadPS4 executable around here, so limit the user maximum
 constexpr VAddr USER_MAX = 0x54FFFFFFFFFFULL;
 #elif defined(__FreeBSD__)
@@ -58,7 +67,14 @@ static constexpr u64 SystemReservedSize = SYSTEM_RESERVED_MAX - SYSTEM_RESERVED_
 static constexpr u64 UserSize = USER_MAX - USER_MIN + 1;
 
 // Required backing file size for mapping physical address space.
+#ifdef __ANDROID__
+// The dev-kit Pro total is 7936 MB, which together with flexible memory asks for roughly 8.25 GB
+// of memfd backing before any extra dmem/fmem is added. That is sparse until touched, but a game
+// that does touch it will OOM a phone. Use the retail console total instead.
+static u64 BackingSize = ORBIS_KERNEL_TOTAL_MEM + ORBIS_KERNEL_FLEXIBLE_MEMORY_SIZE;
+#else
 static u64 BackingSize = ORBIS_KERNEL_TOTAL_MEM_DEV_PRO + ORBIS_KERNEL_FLEXIBLE_MEMORY_SIZE;
+#endif
 
 #ifdef _WIN32
 
