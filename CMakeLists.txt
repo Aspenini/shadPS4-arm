@@ -1225,16 +1225,51 @@ set(EMULATOR src/emulator.cpp
 # shadNet protobuf generation
 set(SHADNET_PROTO_OUT "${CMAKE_CURRENT_BINARY_DIR}/shadnet_proto_gen")
 file(MAKE_DIRECTORY "${SHADNET_PROTO_OUT}")
+
+# protoc runs on the machine doing the build. When cross compiling, CMake will not substitute an
+# executable target name into a custom command -- the binary it built targets the wrong
+# architecture -- so protobuf::protoc would be passed through literally and fail to execute.
+# Build protoc for the host instead, or use one the caller supplied.
+set(SHADNET_PROTOC_DEPENDS "")
+if (NOT CMAKE_CROSSCOMPILING)
+    set(SHADNET_PROTOC_COMMAND protobuf::protoc)
+elseif (SHADPS4_PROTOC_EXECUTABLE)
+    set(SHADNET_PROTOC_COMMAND "${SHADPS4_PROTOC_EXECUTABLE}")
+else()
+    include(ExternalProject)
+    if (CMAKE_HOST_WIN32)
+        set(HOST_PROTOC_SUFFIX ".exe")
+    else()
+        set(HOST_PROTOC_SUFFIX "")
+    endif()
+    set(HOST_PROTOC_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc")
+    set(SHADNET_PROTOC_COMMAND "${HOST_PROTOC_DIR}/bin/protoc${HOST_PROTOC_SUFFIX}")
+    ExternalProject_Add(host_protoc
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/host_protoc"
+        BINARY_DIR "${HOST_PROTOC_DIR}"
+        CMAKE_ARGS
+            "-DCMAKE_BUILD_TYPE=Release"
+            "-DSHADPS4_EXTERNALS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/externals"
+            "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${HOST_PROTOC_DIR}/bin"
+            "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${HOST_PROTOC_DIR}/bin"
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target protoc --config Release
+        BUILD_BYPRODUCTS "${SHADNET_PROTOC_COMMAND}"
+        INSTALL_COMMAND ""
+    )
+    set(SHADNET_PROTOC_DEPENDS host_protoc)
+endif()
+
 add_custom_command(
     OUTPUT
         "${SHADNET_PROTO_OUT}/shadnet.pb.cc"
         "${SHADNET_PROTO_OUT}/shadnet.pb.h"
-    COMMAND protobuf::protoc
+    COMMAND "${SHADNET_PROTOC_COMMAND}"
         "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/shadnet"
         "--cpp_out=${SHADNET_PROTO_OUT}"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/shadnet/shadnet.proto"
     DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/shadnet/shadnet.proto"
+        ${SHADNET_PROTOC_DEPENDS}
     COMMENT "Generating shadnet protobuf sources"
     VERBATIM
 )

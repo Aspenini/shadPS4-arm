@@ -3,7 +3,42 @@
 
 project(ImGui_Resources)
 
-add_executable(Dear_ImGui_FontEmbed ${CMAKE_SOURCE_DIR}/externals/imgui/misc/fonts/binary_to_compressed_c.cpp)
+set(FONT_EMBED_SOURCE ${CMAKE_SOURCE_DIR}/externals/imgui/misc/fonts/binary_to_compressed_c.cpp)
+
+# Dear_ImGui_FontEmbed turns .ttf files into C arrays at build time, so it runs on the machine
+# doing the build. When cross compiling it therefore cannot be an ordinary target: that would
+# produce a binary for the target architecture, which the build machine cannot execute.
+if (CMAKE_CROSSCOMPILING)
+    if (IMGUI_FONT_EMBED_EXECUTABLE)
+        # Caller supplied a host binary; just use it.
+        add_custom_target(Dear_ImGui_FontEmbed)
+        set(FONT_EMBED_COMMAND "${IMGUI_FONT_EMBED_EXECUTABLE}")
+    else()
+        # Build one in a nested project that deliberately does not inherit the cross toolchain.
+        include(ExternalProject)
+        if (CMAKE_HOST_WIN32)
+            set(FONT_EMBED_SUFFIX ".exe")
+        else()
+            set(FONT_EMBED_SUFFIX "")
+        endif()
+        set(FONT_EMBED_HOST_DIR "${CMAKE_CURRENT_BINARY_DIR}/font_embed_host")
+        set(FONT_EMBED_COMMAND "${FONT_EMBED_HOST_DIR}/bin/Dear_ImGui_FontEmbed${FONT_EMBED_SUFFIX}")
+        ExternalProject_Add(Dear_ImGui_FontEmbed
+            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/font_embed_host"
+            BINARY_DIR "${FONT_EMBED_HOST_DIR}"
+            CMAKE_ARGS
+                "-DCMAKE_BUILD_TYPE=Release"
+                "-DFONT_EMBED_SOURCE=${FONT_EMBED_SOURCE}"
+                "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${FONT_EMBED_HOST_DIR}/bin"
+                "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${FONT_EMBED_HOST_DIR}/bin"
+            BUILD_BYPRODUCTS "${FONT_EMBED_COMMAND}"
+            INSTALL_COMMAND ""
+        )
+    endif()
+else()
+    add_executable(Dear_ImGui_FontEmbed ${FONT_EMBED_SOURCE})
+    set(FONT_EMBED_COMMAND "$<TARGET_FILE:Dear_ImGui_FontEmbed>")
+endif()
 
 set(FONT_LIST
     NotoSansArabic-Regular.ttf
@@ -26,7 +61,7 @@ FOREACH (FONT_FILE ${FONT_LIST})
     add_custom_command(
         OUTPUT "${OUTPUT}.g.cpp"
         COMMAND ${CMAKE_COMMAND} -E make_directory "generated_fonts/imgui_fonts"
-        COMMAND $<TARGET_FILE:Dear_ImGui_FontEmbed> -nostatic "${CMAKE_CURRENT_SOURCE_DIR}/fonts/${FONT_FILE}" ${fontname_cpp} > "${OUTPUT}.g.cpp"
+        COMMAND "${FONT_EMBED_COMMAND}" -nostatic "${CMAKE_CURRENT_SOURCE_DIR}/fonts/${FONT_FILE}" ${fontname_cpp} > "${OUTPUT}.g.cpp"
         DEPENDS Dear_ImGui_FontEmbed "fonts/${FONT_FILE}"
         USES_TERMINAL
     )
