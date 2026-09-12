@@ -1333,6 +1333,12 @@ if (ENABLE_DISCORD_RPC)
     target_compile_definitions(shadps4 PRIVATE ENABLE_DISCORD_RPC)
 endif()
 
+if (ANDROID)
+    # NDK libc++ has no time zone database, so fall back to the bundled one. Also link the Android
+    # libraries the Vulkan and logging paths need.
+    target_link_libraries(shadps4 PRIVATE date::date-tz android log)
+endif()
+
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     # Optional due to https://github.com/shadps4-emu/shadPS4/issues/1704
     if (ENABLE_USERFAULTFD)

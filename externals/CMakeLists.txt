@@ -254,13 +254,18 @@ endif()
 set(HWINFO_STATIC ON)
 add_subdirectory(hwinfo)
 
-if (APPLE OR ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    # date
+# date: needed wherever the standard library has no time zone database. Android's NDK libc++ is
+# in the same position as Apple's and FreeBSD's here.
+if (APPLE OR ANDROID OR ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
     if (NOT TARGET date::date-tz)
         option(BUILD_TZ_LIB "" ON)
         option(USE_SYSTEM_TZ_DB "" ON)
         add_subdirectory(date)
     endif()
+endif()
+
+# epoll-shim: bionic provides epoll natively, so Android does not need it.
+if (APPLE OR ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
     if (NOT TARGET epoll-shim)
         add_subdirectory(epoll-shim)
     endif()

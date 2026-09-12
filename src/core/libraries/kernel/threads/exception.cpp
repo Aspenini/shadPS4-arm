@@ -97,7 +97,13 @@ Ucontext::Ucontext(siginfo_t const* inf, ucontext_t* raw_context) {
     uc_mcontext.mc_addr = reinterpret_cast<uint64_t>(inf->si_addr);
 #endif
 #else
-#error "ucontext_t conversion not implemented for current architecture."
+    // The guest mcontext is FreeBSD amd64 shaped because that is what guest code expects, but on
+    // an architecture where guest code does not execute natively the host ucontext_t holds host
+    // registers, not the guest's x86-64 state. There is nothing to marshal from until a CPU
+    // backend exists to supply the guest context. Report the fault address, which is
+    // architecture-independent, and leave the register file zeroed.
+    // NOTE: reached from a signal handler, so nothing here may allocate or log.
+    uc_mcontext.mc_addr = reinterpret_cast<uint64_t>(inf->si_addr);
 #endif
 }
 #else
@@ -220,7 +226,9 @@ void Ucontext::SyncHostFromGuest() {
     regs[REG_RIP] = uc_mcontext.mc_rip;
 #endif
 #else
-#error "ucontext_t conversion not implemented for current architecture."
+    // Nothing to write back: see the constructor above. A guest handler that modified its context
+    // cannot be honoured without a CPU backend to apply the change to. Also reached from a signal
+    // handler, so this must stay allocation and log free.
 #endif
 }
 

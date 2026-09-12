@@ -18,6 +18,9 @@
 #else
 #include <fcntl.h>
 #include <sys/mman.h>
+#ifdef __ANDROID__
+#include <sys/syscall.h>
+#endif
 #endif
 
 #if defined(__APPLE__) && defined(ARCH_X86_64)
@@ -25,6 +28,15 @@
 asm(".zerofill SYSTEM_MANAGED,SYSTEM_MANAGED,__SYSTEM_MANAGED,0x7FFBFC000");
 asm(".zerofill SYSTEM_RESERVED,SYSTEM_RESERVED,__SYSTEM_RESERVED,0x7C0004000");
 asm(".zerofill USER_AREA,USER_AREA,__USER_AREA,0x5F9000000000");
+#endif
+
+#if defined(__ANDROID__) && __ANDROID_API__ < 30
+// bionic only declares memfd_create from API level 30 onwards. The syscall has existed since
+// Linux 3.17, far older than any Android release this can run on, so invoke it directly rather
+// than raising the minimum supported API level for it.
+static int memfd_create(const char* name, unsigned int flags) {
+    return static_cast<int>(syscall(__NR_memfd_create, name, flags));
+}
 #endif
 
 namespace Core {

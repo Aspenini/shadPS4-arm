@@ -30,6 +30,22 @@ void* PS4_SYSV_ABI _runOnAnotherStack(void* arg, void* func, void* stackb) {
 
 namespace Libraries::Kernel {
 
+#ifndef _WIN32
+/// NativeThread stores its handle as a uintptr_t, but pthread_t is a pointer on some platforms
+/// (macOS) and an integer on others (glibc, bionic). reinterpret_cast handles the former and
+/// rejects integer-to-integer conversions, static_cast is the other way round, so pick per target.
+/// Must be a template: if constexpr only discards the untaken branch inside one, and the two casts
+/// are each ill-formed for the other kind of pthread_t.
+template <typename T = pthread_t>
+[[maybe_unused]] static T ToNativePthread(uintptr_t handle) {
+    if constexpr (std::is_pointer_v<T>) {
+        return reinterpret_cast<T>(handle);
+    } else {
+        return static_cast<T>(handle);
+    }
+}
+#endif
+
 extern PthreadAttr PthreadAttrDefault;
 extern std::array<Sigaction, 128> PosixActions;
 
@@ -693,7 +709,7 @@ void InterruptPthreadForCancellation(Pthread* thread) noexcept {
         LOG_ERROR(Lib_Kernel, "Failed to deliver pthread cancellation APC: {:#x}", result);
     }
 #else
-    const auto native_thread = reinterpret_cast<pthread_t>(thread->native_thr->GetHandle());
+    const auto native_thread = ToNativePthread(thread->native_thr->GetHandle());
     const int result = pthread_kill(native_thread, HostPthreadCancelSignal());
     if (result != 0) {
         LOG_ERROR(Lib_Kernel, "Failed to deliver pthread cancellation signal: {}", result);
@@ -961,7 +977,7 @@ void Pthread::WakeForSignal() {
                                  ExceptionHandler, nullptr, nullptr, nullptr);
     ASSERT(res == 0);
 #else
-    pthread_kill(reinterpret_cast<pthread_t>(native_thr->GetHandle()), SIGUSR1);
+    pthread_kill(ToNativePthread(native_thr->GetHandle()), SIGUSR1);
 #endif
 }
 

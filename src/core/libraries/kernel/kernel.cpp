@@ -31,6 +31,9 @@
 
 #ifdef _WIN64
 #include <Rpc.h>
+#elif defined(__ANDROID__)
+// bionic has no libuuid; a version 4 UUID is generated inline below instead.
+#include <random>
 #else
 #include <uuid/uuid.h>
 #endif
@@ -175,10 +178,22 @@ s32 PS4_SYSV_ABI sceKernelUuidCreate(OrbisKernelUuid* orbisUuid) {
     if (UuidCreate(&uuid) != RPC_S_OK) {
         return ORBIS_KERNEL_ERROR_EFAULT;
     }
+#elif defined(__ANDROID__)
+    // No libuuid on Android. uuid_generate() produces a random (version 4) UUID when no suitable
+    // source of a time or MAC based one is available, so generate one of those directly.
+    std::array<u8, 16> uuid{};
+    std::random_device rd;
+    std::uniform_int_distribution<u32> dist(0, 255);
+    for (auto& byte : uuid) {
+        byte = static_cast<u8>(dist(rd));
+    }
+    uuid[6] = static_cast<u8>((uuid[6] & 0x0F) | 0x40); // version 4
+    uuid[8] = static_cast<u8>((uuid[8] & 0x3F) | 0x80); // RFC 4122 variant
 #else
     uuid_t uuid;
     uuid_generate(uuid);
 #endif
+    static_assert(sizeof(OrbisKernelUuid) == 16);
     std::memcpy(orbisUuid, &uuid, sizeof(OrbisKernelUuid));
     return ORBIS_OK;
 }
