@@ -22,6 +22,11 @@ if (NOT TARGET Boost::headers)
 endif()
 
 # spdlog
+# spdlog vendors its own fmt via FetchContent, which downloads a tarball at configure time and
+# leaves the externals/fmt submodule unused. Redirect that FetchContent at the submodule so the
+# build needs no network and only one copy of fmt exists in the tree.
+set(FETCHCONTENT_SOURCE_DIR_FMT "${CMAKE_CURRENT_SOURCE_DIR}/fmt" CACHE PATH
+    "Use the vendored fmt submodule instead of downloading one" FORCE)
 set(SPDLOG_NO_EXCEPTIONS ON)
 set(SPDLOG_DISABLE_GLOBAL_LOGGER ON)
 if (TARGET fmt::fmt)
