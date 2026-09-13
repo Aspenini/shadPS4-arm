@@ -13,6 +13,7 @@
 #include "common/thread.h"
 #include "core/aerolib/aerolib.h"
 #include "core/aerolib/stubs.h"
+#include "core/cpu_backend.h"
 #include "core/devtools/widget/module_list.h"
 #include "core/emulator_settings.h"
 #include "core/file_sys/backends/host_fs.h"
@@ -38,30 +39,8 @@ static PS4_SYSV_ABI void ProgramExitFunc() {
     LOG_ERROR(Core_Linker, "Exit function called");
 }
 
-static PS4_SYSV_ABI void* RunMainEntry [[noreturn]] (EntryParams* params) {
-#ifdef ARCH_X86_64
-    // Start shared library modules
-    asm volatile("andq $-16, %%rsp\n" // Align to 16 bytes
-                 "subq $8, %%rsp\n"   // videoout_basic expects the stack to be misaligned
-
-                 // Kernel also pushes some more things here during process init
-                 // at least: environment, auxv, possibly other things
-
-                 "pushq 8(%1)\n" // copy EntryParams to top of stack like the kernel does
-                 "pushq 0(%1)\n" // OpenOrbis expects to find it there
-
-                 "movq %1, %%rdi\n" // also pass params and exit func
-                 "movq %2, %%rsi\n" // as before
-
-                 "jmp *%0\n" // can't use call here, as that would mangle the prepared stack.
-                             // there's no coming back
-                 :
-                 : "r"(params->entry_addr), "r"(params), "r"(ProgramExitFunc)
-                 : "rax", "rsi", "rdi");
-    UNREACHABLE();
-#else
-    UNREACHABLE_MSG("RunMainEntry unimplemented for current architecture.");
-#endif
+static void RunMainEntry [[noreturn]] (EntryParams* params) {
+    Cpu().EnterEntryPoint(*params, reinterpret_cast<VAddr>(ProgramExitFunc));
 }
 
 Linker::Linker() : memory{Memory::Instance()} {}

@@ -9,6 +9,7 @@
 #include "common/sha1.h"
 #include "common/string_util.h"
 #include "core/aerolib/aerolib.h"
+#include "core/cpu_backend.h"
 #include "core/cpu_patches.h"
 #include "core/libraries/error_codes.h"
 #include "core/loader/dwarf.h"
@@ -17,8 +18,6 @@
 #include "core/tls.h"
 
 namespace Core {
-
-using EntryFunc = PS4_SYSV_ABI int (*)(size_t args, const void* argp, void* param);
 
 static constexpr u64 ExecutableLoadBase = 0x400000;
 static constexpr u64 GameModuleLoadBase = 0x80000000;
@@ -101,7 +100,7 @@ Module::~Module() = default;
 s32 Module::Start(u64 args, const void* argp, void* param) {
     LOG_INFO(Core_Linker, "Module started : {}", name);
     const VAddr addr = dynamic_info.init_virtual_addr + GetBaseAddress();
-    return reinterpret_cast<EntryFunc>(addr)(args, argp, param);
+    return Cpu().CallModuleEntry(addr, args, argp, param);
 }
 
 void Module::LoadModuleToMemory(u32& max_tls_index) {

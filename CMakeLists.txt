@@ -367,7 +367,8 @@ set(KERNEL_LIB src/core/libraries/kernel/coredump/coredump.cpp
 )
 
 if (ARCHITECTURE STREQUAL "x86_64" OR ARCHITECTURE STREQUAL "arm64")
-    list(APPEND KERNEL_LIB src/core/libraries/kernel/threads/stack_asm.cpp)
+    list(APPEND KERNEL_LIB src/core/libraries/kernel/threads/stack_asm.cpp
+                           src/core/libraries/kernel/threads/stack_asm.h)
 endif()
 
 set(NETWORK_LIBS src/core/libraries/network/http.cpp
@@ -849,6 +850,8 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/aerolib/aerolib.h
          src/core/address_space.cpp
          src/core/address_space.h
+         src/core/cpu_backend.cpp
+         src/core/cpu_backend.h
          src/core/file_sys/devices/base_device.cpp
          src/core/file_sys/devices/base_device.h
          src/core/file_sys/devices/ioccom.h

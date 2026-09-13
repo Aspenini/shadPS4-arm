@@ -9,24 +9,17 @@
 #include <csignal>
 #include <pthread.h>
 #endif
+#include "core/cpu_backend.h"
 #include "core/debug_state.h"
 #include "core/libraries/kernel/kernel.h"
 #include "core/libraries/kernel/orbis_error.h"
 #include "core/libraries/kernel/posix_error.h"
 #include "core/libraries/kernel/threads.h"
 #include "core/libraries/kernel/threads/pthread.h"
+#include "core/libraries/kernel/threads/stack_asm.h"
 #include "core/libraries/kernel/threads/thread_state.h"
 #include "core/libraries/libs.h"
 #include "core/memory.h"
-
-#if defined(ARCH_X86_64) || defined(__arm64__) || defined(__aarch64__)
-extern "C" void* PS4_SYSV_ABI _runOnAnotherStack(void* arg, void* func,
-                                                 void* stackb) asm("_runOnAnotherStack");
-#else
-void* PS4_SYSV_ABI _runOnAnotherStack(void* arg, void* func, void* stackb) {
-    UNREACHABLE_MSG("_runOnAnotherStack not implemented on target architecture.");
-}
-#endif
 
 namespace Libraries::Kernel {
 
@@ -286,7 +279,8 @@ static void* RunThread(void* arg) {
     auto* const stack =
         (void*)(((size_t)curthread->attr.stackaddr_attr + curthread->attr.stacksize_attr) & (~15));
     LOG_INFO(Kernel_Pthread, "Running thread {} with stack {:#x}", curthread->name, VAddr(stack));
-    void* ret = _runOnAnotherStack(curthread->arg, (void*)curthread->start_routine, stack);
+    void* ret = Core::Cpu().CallThreadEntry(reinterpret_cast<VAddr>(curthread->start_routine),
+                                            curthread->arg, stack);
 
     /* Remove thread from tracking */
     DebugState.RemoveCurrentThreadFromGuestList();
