@@ -1298,7 +1298,14 @@ endif()
 
 if(NOT ENABLE_TESTS)
 
-add_executable(shadps4
+# Android loads the emulator as a shared library from the app process rather than executing it,
+# so build one there. The sources are otherwise identical; jni.cpp adds the entry points the app
+# calls, and main() simply goes unused.
+if (ANDROID)
+    list(APPEND EMULATOR src/android/jni.cpp)
+endif()
+
+set(SHADPS4_SOURCES
     ${AUDIO_CORE}
     ${IMGUI}
     ${INPUT}
@@ -1314,6 +1321,12 @@ add_executable(shadps4
     src/sdl_window.h
     src/sdl_window.cpp
 )
+
+if (ANDROID)
+    add_library(shadps4 SHARED ${SHADPS4_SOURCES})
+else()
+    add_executable(shadps4 ${SHADPS4_SOURCES})
+endif()
 
 create_target_directory_groups(shadps4)
 

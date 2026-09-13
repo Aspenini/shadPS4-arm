@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 shadPS4 Emulator Project
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<resources>
+    <!--
+    Compose draws everything itself, so this only needs to give the Activity a window with no
+    system action bar. Deliberately not a Theme.Material3.* style: those come from the Material
+    Components XML library, which a Compose-only app has no other reason to depend on.
+    -->
+    <style name="Theme.ShadPS4" parent="android:Theme.DeviceDefault.NoActionBar" />
+</resources>

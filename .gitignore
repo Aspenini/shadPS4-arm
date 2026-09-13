@@ -421,3 +421,10 @@ cmake-build-*
 
 # Nix Result symlink
 result
+
+# Android app build output and the prebuilt native library dropped in for packaging
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/app/src/main/jniLibs/
+/android/local.properties
