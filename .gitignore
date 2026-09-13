@@ -428,3 +428,5 @@ result
 /android/app/build/
 /android/app/src/main/jniLibs/
 /android/local.properties
+/shadps4-device-report.apk
+/shadps4-report-*.apk
