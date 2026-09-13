@@ -62,6 +62,34 @@ externals/ffmpeg-android/build-ffmpeg.sh --ndk "$ANDROID_NDK" --prefix /tmp/ffmp
 > assembly needs a case sensitive filesystem *and* an MSYS2 or Cygwin make — pass `--asm on` to
 > the script if you have both. Release artifacts should be built on Linux or in CI.
 
+### FEXCore (experimental)
+
+FEXCore is FEX's x86-64 to AArch64 translation library, and is the piece that could eventually let
+guest code run on ARM. It is vendored as a submodule and built by:
+
+```sh
+-DENABLE_FEXCORE=ON
+```
+
+It is off by default: it is a large extra build, and **nothing calls it yet**. Enabling it produces
+`libFEXCore.a` and no change in behaviour. `Core::CpuBackend` is the seam it would be wired into.
+
+Two upstream assumptions had to be patched, in `externals/fexcore-android/fex-android-cross.patch`:
+FEX's CMake rejects any system that is not Linux or Windows, and its AArch64 tuning is detected by
+reading `/proc/cpuinfo`, which does not exist when cross compiling. Only FEXCore is built, not the
+FEXLoader frontend.
+
+`externals/fexcore-android/prepare-fex.sh` initialises only the FEX submodules FEXCore needs. This
+matters: FEX carries three submodules of prebuilt test binaries, `fex-gvisor-tests-bins` alone
+being over 700 MB, none of which are needed. Initialising selectively keeps the checkout near
+530 MB rather than 1.4 GB.
+
+> [!WARNING]
+> Before anything links FEXCore: shadPS4 and FEX each vendor their own fmt, currently 12.1.1 and
+> 12.2.1. Both use the `fmt::v12` inline namespace, so linking both static libraries leaves the
+> linker to choose between two different definitions of the same symbols. Align the submodules, or
+> pass FEX an installed fmt via `fmt_DIR`, before wiring FEXCore up.
+
 ### Known limitations
 
 Beyond the absence of a CPU backend:

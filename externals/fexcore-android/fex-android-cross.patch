@@ -1,0 +1,72 @@
+Make FEX configurable for a cross compiled Android build.
+
+Two upstream assumptions get in the way, both in FEX's top level CMakeLists:
+
+1. The platform check rejects anything that is not Linux or Windows. Android
+   reports CMAKE_SYSTEM_NAME as "Android", so configuration fails outright even
+   though it is Linux underneath and FEXCore itself is OS agnostic.
+
+2. AArch64 tuning is detected by running Scripts/aarch64_fit_native.py against
+   /proc/cpuinfo, which assumes the build is happening on the target device.
+   Cross compiling has no such file, so AARCH64_CPU comes back empty and
+   string(STRIP) fails with "requires two arguments". Tuning for the build
+   machine would be wrong regardless, so skip the probe and leave the choice to
+   whoever drives the cross build.
+
+Only FEXCore is built from this, not the FEXLoader frontend.
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 87b7c31..55ded3d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -61,7 +61,7 @@ if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+   message(FATAL_ERROR "Unsupported pointer size ${CMAKE_SIZEOF_VOID_P}."
+     " FEX only supports 64-bit (8-byte pointer) systems."
+     " If you believe this is in error, file an issue.")
+-elseif (NOT (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux"))
++elseif (NOT (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android"))
+   message(FATAL_ERROR "Unsupported system type ${CMAKE_SYSTEM_NAME}."
+     " FEX only supports Linux and Windows."
+     " If you believe this is in error, file an issue.")
+@@ -511,21 +511,33 @@ if (TUNE_CPU STREQUAL "native")
+         list(APPEND FEX_TUNE_COMPILE_FLAGS "-mcpu=native")
+       endif()
+     else()
+-      execute_process(COMMAND python3 "${PROJECT_SOURCE_DIR}/Scripts/aarch64_fit_native.py" "/proc/cpuinfo" "${CMAKE_CXX_COMPILER_VERSION}"
+-        OUTPUT_VARIABLE AARCH64_CPU)
+-
+-      string(STRIP ${AARCH64_CPU} AARCH64_CPU)
++      if (CMAKE_CROSSCOMPILING)
++        # No /proc/cpuinfo for the target, and tuning for the build machine would be wrong
++        # anyway. Leave the choice to whoever is driving the cross build.
++        set(AARCH64_CPU "")
++      else()
++        execute_process(COMMAND python3 "${PROJECT_SOURCE_DIR}/Scripts/aarch64_fit_native.py" "/proc/cpuinfo" "${CMAKE_CXX_COMPILER_VERSION}"
++          OUTPUT_VARIABLE AARCH64_CPU)
++
++        string(STRIP "${AARCH64_CPU}" AARCH64_CPU)
++      endif()
+ 
+-      execute_process(COMMAND python3 "${PROJECT_SOURCE_DIR}/Scripts/NeedDisabledSVE.py"
+-        RESULT_VARIABLE NEEDS_SVE_DISABLED)
++      if (CMAKE_CROSSCOMPILING)
++        set(NEEDS_SVE_DISABLED FALSE)
++      else()
++        execute_process(COMMAND python3 "${PROJECT_SOURCE_DIR}/Scripts/NeedDisabledSVE.py"
++          RESULT_VARIABLE NEEDS_SVE_DISABLED)
++      endif()
+       if (NEEDS_SVE_DISABLED)
+         message(STATUS "Platform has bugged SVE. Disabling")
+         set(AARCH64_CPU "cortex-a78")
+       endif()
+ 
+-      check_cxx_compiler_flag("-mcpu=${AARCH64_CPU}" COMPILER_SUPPORTS_CPU_TYPE)
+-      if(COMPILER_SUPPORTS_CPU_TYPE)
+-        list(APPEND FEX_TUNE_COMPILE_FLAGS "-mcpu=${AARCH64_CPU}")
++      if (AARCH64_CPU)
++        check_cxx_compiler_flag("-mcpu=${AARCH64_CPU}" COMPILER_SUPPORTS_CPU_TYPE)
++        if(COMPILER_SUPPORTS_CPU_TYPE)
++          list(APPEND FEX_TUNE_COMPILE_FLAGS "-mcpu=${AARCH64_CPU}")
++        endif()
+       endif()
+     endif()
+   else()

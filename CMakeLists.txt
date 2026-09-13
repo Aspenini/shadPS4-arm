@@ -39,6 +39,9 @@ cmake_dependent_option(ENABLE_SYSTEM_VULKAN "Enable the system Vulkan driver" OF
 option(ENABLE_DISCORD_RPC "Enable the Discord RPC integration" ON)
 option(ENABLE_UPDATER "Enables the options to updater" ON)
 option(ENABLE_TESTS "Build unit tests (requires GTest)" OFF)
+# Experimental: the x86-64 translation library that could let guest code run on ARM.
+# Off by default -- it is a large extra build and nothing is wired up to call it yet.
+option(ENABLE_FEXCORE "Build the FEXCore x86-64 to AArch64 translation backend" OFF)
 option(ENABLE_SYSTEM_LIBRARIES "Enable building against system libraries" OFF)
 
 # First, determine whether to use CMAKE_OSX_ARCHITECTURES or CMAKE_SYSTEM_PROCESSOR.

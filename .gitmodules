@@ -166,3 +166,6 @@
 	path = externals/imgui
 	url = https://github.com/shadexternals/imgui.git
 	branch = docking
+[submodule "externals/fex"]
+	path = externals/fex
+	url = https://github.com/FEX-Emu/FEX.git

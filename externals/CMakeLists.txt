@@ -418,6 +418,15 @@ set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)
 endif()
 add_subdirectory(protobuf EXCLUDE_FROM_ALL)
 
+# FEXCore: x86-64 to AArch64 translation, so that guest code can run on ARM.
+if (ENABLE_FEXCORE)
+    if (NOT ARCHITECTURE STREQUAL "arm64")
+        message(FATAL_ERROR "ENABLE_FEXCORE only makes sense when targeting arm64; guest code "
+                            "already runs natively on x86-64.")
+    endif()
+    add_subdirectory(fexcore-android)
+endif()
+
 # ZArchive (.zar archive support)
 if (NOT TARGET ZArchive::zarchive)
     # zstd (dependency of ZArchive)
