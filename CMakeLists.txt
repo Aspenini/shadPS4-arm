@@ -1323,6 +1323,11 @@ set(SHADPS4_SOURCES
 )
 
 if (ANDROID)
+    # Standalone: links none of shadPS4 so that it still answers when the emulator library will
+    # not load, which is exactly when its answers matter most.
+    add_library(shadps4_probe SHARED src/android/probe.cpp)
+    target_link_libraries(shadps4_probe PRIVATE Vulkan::Headers log)
+
     add_library(shadps4 SHARED ${SHADPS4_SOURCES})
 else()
     add_executable(shadps4 ${SHADPS4_SOURCES})

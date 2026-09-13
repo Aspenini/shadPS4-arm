@@ -28,9 +28,15 @@ android {
         }
     }
 
-    // The native library is already stripped; leave it alone.
+    // The native libraries are already stripped; leave them alone. Passing
+    // -PincludeEmulator=false leaves out the 68 MB emulator library, producing a small APK that
+    // still reports everything the standalone probe measures.
     packaging {
-        jniLibs.keepDebugSymbols += "**/libshadps4.so"
+        jniLibs.keepDebugSymbols += "**/*.so"
+        val includeEmulator = (findProperty("includeEmulator") as String?)?.toBoolean() ?: true
+        if (!includeEmulator) {
+            jniLibs.excludes += "**/libshadps4.so"
+        }
     }
 
     compileOptions {

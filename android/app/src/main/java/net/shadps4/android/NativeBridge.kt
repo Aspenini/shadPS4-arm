@@ -3,22 +3,29 @@
 
 package net.shadps4.android
 
-/** Entry points into libshadps4.so. Implemented in src/android/jni.cpp. */
+/**
+ * The two native libraries are kept separate on purpose.
+ *
+ * libshadps4_probe.so links none of the emulator, so it reports what the device can do even when
+ * libshadps4.so cannot be loaded -- which is the case its answers are most needed for. Loading
+ * the emulator runs every static initialiser in it, and an abort there takes the process with it.
+ */
 object NativeBridge {
-    /**
-     * Loads the emulator library and reports what this device can do.
-     *
-     * Loading is the interesting half: libshadps4.so is the whole emulator, so if this throws,
-     * the native port does not work on this device at all.
-     */
-    fun load(): Result<Unit> = runCatching { System.loadLibrary("shadps4") }
+    /** Loads the standalone probe. Should never fail; if it does, the app itself is broken. */
+    fun loadProbe(): Result<Unit> = runCatching { System.loadLibrary("shadps4_probe") }
+
+    /** Loads the emulator. Failing here is a real result, not an error to hide. */
+    fun loadEmulator(): Result<Unit> = runCatching { System.loadLibrary("shadps4") }
+
+    /** Host page size, reservable address space and Vulkan capability. From probe.cpp. */
+    @JvmStatic
+    external fun deviceReport(): String
 
     /**
-     * Measures the things the Android port depends on and cannot be determined off-device:
-     * host page size, reservable address space, and Vulkan capability.
+     * Proves the emulator library loaded and that code inside it runs. From jni.cpp.
      *
      * @param userDir writable directory the emulator should treat as its user directory
      */
     @JvmStatic
-    external fun deviceReport(userDir: String): String
+    external fun emulatorInfo(userDir: String): String
 }
