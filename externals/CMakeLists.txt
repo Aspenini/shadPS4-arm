@@ -41,8 +41,15 @@ if (NOT TARGET fmt::fmt)
 endif()
 
 # FFmpeg
+# ext-ffmpeg-core downloads prebuilt archives and picks them by OS. Android matches its UNIX
+# branch and so would link the glibc Linux build, which does not resolve against bionic, and no
+# Android archive is published. Build one from source there instead.
 if (NOT TARGET FFmpeg::ffmpeg)
-    add_subdirectory(ffmpeg-core)
+    if (ANDROID)
+        add_subdirectory(ffmpeg-android)
+    else()
+        add_subdirectory(ffmpeg-core)
+    endif()
     add_library(FFmpeg::ffmpeg ALIAS ffmpeg)
 endif()
 
