@@ -1,12 +1,18 @@
 // SPDX-FileCopyrightText: Copyright 2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <memory>
+
 #include "common/arch.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/cpu_backend.h"
 #include "core/libraries/kernel/threads/stack_asm.h"
 #include "core/linker.h"
+
+#ifdef ENABLE_FEXCORE
+#include "core/cpu_backend_fex.h"
+#endif
 
 namespace Core {
 
@@ -99,8 +105,15 @@ using ActiveCpuBackend = UnsupportedCpuBackend;
 } // Anonymous namespace
 
 CpuBackend& Cpu() {
-    static ActiveCpuBackend backend;
-    return backend;
+    static const std::unique_ptr<CpuBackend> backend = [] -> std::unique_ptr<CpuBackend> {
+#ifdef ENABLE_FEXCORE
+        return MakeFexCpuBackend();
+#else
+        return std::make_unique<ActiveCpuBackend>();
+#endif
+    }();
+    LOG_INFO(Core_Linker, "CPU backend: {}", backend->Name());
+    return *backend;
 }
 
 } // namespace Core

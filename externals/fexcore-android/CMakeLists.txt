@@ -78,8 +78,15 @@ ExternalProject_Add(fexcore-build
 
 add_library(fexcore INTERFACE)
 add_dependencies(fexcore fexcore-build)
+# Mirrors what FEXCore_Base exports: its own public headers, the headers generated into the build
+# tree, and unordered_dense, which its fextl containers expose through FEXCore/fextl/robin_map.h.
 target_include_directories(fexcore INTERFACE
     "${FEX_SOURCE_DIR}/FEXCore/include"
+    "${FEX_SOURCE_DIR}/FEXHeaderUtils"
     "${FEX_SOURCE_DIR}/Source"
+    "${FEX_SOURCE_DIR}/External/unordered_dense/include"
+    "${FEX_SOURCE_DIR}/External/fmt/include"
+    "${FEXCORE_BUILD_DIR}/include"
+    "${FEXCORE_BUILD_DIR}/FEXCore/Source"
 )
 target_link_libraries(fexcore INTERFACE "${FEXCORE_LIBRARY}")

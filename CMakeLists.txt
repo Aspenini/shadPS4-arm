@@ -960,6 +960,12 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/user_settings.h
 )
 
+if (ENABLE_FEXCORE)
+    set(CORE ${CORE}
+             src/core/cpu_backend_fex.cpp
+             src/core/cpu_backend_fex.h)
+endif()
+
 if (ARCHITECTURE STREQUAL "x86_64")
     set(CORE ${CORE}
              src/core/cpu_patches.cpp
@@ -1337,6 +1343,11 @@ target_compile_definitions(Dear_ImGui PRIVATE IMGUI_USER_CONFIG="${PROJECT_SOURC
 
 if (ENABLE_DISCORD_RPC)
     target_compile_definitions(shadps4 PRIVATE ENABLE_DISCORD_RPC)
+endif()
+
+if (ENABLE_FEXCORE)
+    target_compile_definitions(shadps4 PRIVATE ENABLE_FEXCORE)
+    target_link_libraries(shadps4 PRIVATE fexcore)
 endif()
 
 if (ANDROID)
