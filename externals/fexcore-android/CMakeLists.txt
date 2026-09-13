@@ -26,11 +26,22 @@ endif()
 set(FEXCORE_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/fex-build")
 set(FEXCORE_LIBRARY "${FEXCORE_BUILD_DIR}/FEXCore/Source/libFEXCore.a")
 
+# Both projects vendor fmt, and both use the fmt::v12 inline namespace, so two different 12.x
+# revisions would define the same mangled symbols with different definitions and the linker would
+# silently pick one. Pass shadPS4's revision down so FEX builds against the same source.
+execute_process(
+    COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}/../fmt" rev-parse HEAD
+    OUTPUT_VARIABLE SHADPS4_FMT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
 # Runs on every configure; the script is idempotent.
 execute_process(
     COMMAND "${BASH_PROGRAM}" "${CMAKE_CURRENT_SOURCE_DIR}/prepare-fex.sh"
             --fex-dir "${FEX_SOURCE_DIR}"
             --patch "${CMAKE_CURRENT_SOURCE_DIR}/fex-android-cross.patch"
+            --fmt-commit "${SHADPS4_FMT_COMMIT}"
     RESULT_VARIABLE PREPARE_RESULT
     OUTPUT_VARIABLE PREPARE_OUTPUT
     ERROR_VARIABLE PREPARE_OUTPUT
@@ -64,13 +75,6 @@ ExternalProject_Add(fexcore-build
     INSTALL_COMMAND ""
     USES_TERMINAL_BUILD 1
 )
-
-# NOTE, before anything actually links this: shadPS4 and FEX each vendor their own fmt, and at
-# the time of writing they disagree -- 12.1.1 here against 12.2.1 there. Both mangle into the same
-# fmt::v12 inline namespace, so linking both static libraries would leave the linker to pick one
-# definition for symbols the other also defines. FEX does find_package(fmt QUIET) before falling
-# back to its bundle, so the fix is either to align the two submodules or to hand FEX an installed
-# fmt through fmt_DIR. Nothing references FEXCore yet, so this is latent rather than broken.
 
 add_library(fexcore INTERFACE)
 add_dependencies(fexcore fexcore-build)

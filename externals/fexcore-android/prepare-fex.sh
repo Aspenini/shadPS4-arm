@@ -12,11 +12,13 @@ set -euo pipefail
 
 FEX_DIR=""
 PATCH=""
+FMT_COMMIT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --fex-dir) FEX_DIR="$2"; shift 2 ;;
         --patch) PATCH="$2"; shift 2 ;;
+        --fmt-commit) FMT_COMMIT="$2"; shift 2 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -65,6 +67,22 @@ for module in $NEEDED; do
         git submodule update --init --depth 1 -- "$module"
     fi
 done
+
+# shadPS4 and FEX each vendor fmt, and both use the fmt::v12 inline namespace, so two different
+# 12.x revisions would define the same mangled symbols with different definitions. Linking both
+# static libraries then leaves the choice to the linker. Pin FEX's copy to the revision shadPS4
+# uses so there is only one version of fmt in the tree.
+#
+# Done to FEX rather than to shadPS4 deliberately: FEXCore is experimental and off by default, so
+# it should not dictate the fmt revision every other platform builds against.
+if [ -n "$FMT_COMMIT" ] && [ -e External/fmt/.git ]; then
+    current="$(git -C External/fmt rev-parse HEAD)"
+    if [ "$current" != "$FMT_COMMIT" ]; then
+        echo "pinning FEX's fmt to shadPS4's revision ($FMT_COMMIT)"
+        git -C External/fmt cat-file -e "$FMT_COMMIT" 2>/dev/null             || git -C External/fmt fetch --depth 50 origin "$FMT_COMMIT"
+        git -C External/fmt checkout --detach --force "$FMT_COMMIT"
+    fi
+fi
 
 # Apply the patch only when it is not already in place, so repeated configures are harmless.
 if git apply --check --reverse "$PATCH" >/dev/null 2>&1; then

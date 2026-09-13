@@ -84,11 +84,12 @@ matters: FEX carries three submodules of prebuilt test binaries, `fex-gvisor-tes
 being over 700 MB, none of which are needed. Initialising selectively keeps the checkout near
 530 MB rather than 1.4 GB.
 
-> [!WARNING]
-> Before anything links FEXCore: shadPS4 and FEX each vendor their own fmt, currently 12.1.1 and
-> 12.2.1. Both use the `fmt::v12` inline namespace, so linking both static libraries leaves the
-> linker to choose between two different definitions of the same symbols. Align the submodules, or
-> pass FEX an installed fmt via `fmt_DIR`, before wiring FEXCore up.
+Both projects vendor fmt, and both use the `fmt::v12` inline namespace, so two different 12.x
+revisions would define the same mangled symbols with different definitions and the linker would
+silently pick one. `prepare-fex.sh` pins FEX's fmt to whatever revision shadPS4's submodule is on,
+so there is one version of fmt in the tree. It is done in that direction on purpose: FEXCore is
+experimental and off by default, so it should not dictate the fmt revision every other platform
+builds against.
 
 ### Known limitations
 
